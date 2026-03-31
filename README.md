@@ -11,6 +11,7 @@ To keep your mirror clean, the module acts smartly: It stays completely hidden d
 * **Smart Visibility:** Only shows up when precipitation is coming.
 * **Precipitation Detection:** Automatically detects and displays whether to expect rain, snow, sleet, or hail.
 * **Official Data:** Uses DWD WMS `dwd:Niederschlagsradar` for up to 2 hours of past measurements and 2 hours of future forecasting (Nowcast).
+![Demo](rainradar.gif)
 
 ## Installation
 
