@@ -50,7 +50,7 @@ Add the module to your config/config.js file. All parameters are optional and wi
         height: "350px",               // Module height
         border: "none",                // e.g., "2px solid #ffffff"
         zoomLevel: 9,                  // Map Zoom (9-10 recommended for region view)
-        cloudBlur: 2,                  // Softens radar pixels (0 = sharp grid, 2-5 = realistic clouds)
+        cloudBlur: 12,                  // Softens radar pixels (0 = sharp grid, 2-5 = realistic clouds)
         markerSymbol: "fa-home",       // FontAwesome icon for your location
         markerColor: "#ff0000",        // Color of the center marker
         
@@ -87,7 +87,7 @@ Add the module to your config/config.js file. All parameters are optional and wi
 | timePast |	Number	| 60	| How many minutes into the past the radar should show. Max: 120.
 | timeFuture |	Number	| 120	| How many minutes into the future the forecast should show. Max: 120.
 | frameStep	| Number	| 10	| The minute increments between frames. Default is 10. Minimum is 5.
-| cloudBlur	| Number	| 2	CSS | blur applied to the radar layer. 0 shows the raw 1x1 km DWD grid. 2 to 4 creates realistic, soft clouds.
+| cloudBlur	| Number	| 12	CSS | blur applied to the radar layer. 0 shows the raw 1x1 km DWD grid. 2 to 4 creates realistic, soft clouds.
 | animationSpeed	| Number | 2000 |	Milliseconds per frame. 2000 is highly recommended to allow the CSS cross-fade animation to look smooth.
 | zoomLevel	| Number	9 |	Initial map zoom. | See Zoom Level Guide below.
 | logLevel	| String	| "INFO" | Terminal output verbosity. Choose "NONE", "ERROR", "INFO", or "DEBUG
