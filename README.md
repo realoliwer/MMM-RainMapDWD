@@ -1,7 +1,7 @@
 # MMM-RainRadarDWD
 This module has been developed mostly by vibe coding with an AI as I am not a real developer. If you want to take over the module and maintaine the code, please feel free to contact me. I just wanted to get a solution for myself and happy to share the result for now =)
 
-A smart, zero-dependency Rain & Snow Radar module for [MagicMirror²](https://github.com/MichMich/MagicMirror) using data from GERMAN weather service (DWD). Hence it is only working for areas in Germany!
+A smart Rain & Snow Radar module for [MagicMirror²]([https://github.com/MagicMirrorOrg/MagicMirror]) using data from GERMAN weather service (DWD). Hence it is only working for areas in Germany!
 
 It displays animated radar data (past and forecast) from the official **Deutscher Wetterdienst (DWD)** on an OpenLayers map. 
 
@@ -20,19 +20,48 @@ To keep your mirror clean, the module acts smartly: It stays completely hidden d
 1. Navigate into your MagicMirror `modules` folder:
    ```bash
    cd ~/MagicMirror/modules
+   ```
 2. Clone this repository:
    ```bash
    git clone https://github.com/realoliwer/MMM-RainRadarDWD.git
+   ```
 3. Restart your MagicMirror;e.g. with
    ```bash
    pm2 restart MagicMirror.
+   ```
   No additional npm install is required! 
 
+## Update
+
+To update the module to the latest version, navigate to your module folder and pull the latest changes:
+  1. pull the changes
+   ```Bash
+   cd ~/MagicMirror/modules/MMM-RainRadarDWD
+   git pull
+   ```
+  2. restart your mirror
+   ```bash
+   pm2 restart MagicMirror.
+   ```
 ## Configuration
 
 Add the module to your config/config.js file. All parameters are optional and will fall back to defaults if omitted. There are quite a number of configuration options available, but you only need to configure lat and lon for your location to make the module work!
 
-        {
+Basic configuration:
+```
+{
+    module: "MMM-RainRadarDWD",
+    position: "top_right",
+    config: {
+        lat: 53.5511,
+        lon: 9.9937,
+    }
+},
+```
+
+Configuration with all parameters and short explanation (see also table below)
+```
+{
     module: "MMM-RainRadarDWD",
     position: "top_right",
     config: {
@@ -78,9 +107,11 @@ Add the module to your config/config.js file. All parameters are optional and wi
         updateInterval: 600000,        // Check weather API every 10 minutes
         logLevel: "INFO"               // "NONE", "ERROR", "INFO", "DEBUG"
     }
-    }
+},
+```
 
 ## Configuration Options Explained
+
 | Option | Type | Default | Description |
 |---------|-----|--------- |-------------|
 | lat | Number | 53.5511 | Latitude of your location. |

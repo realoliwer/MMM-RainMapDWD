@@ -1,6 +1,6 @@
 {
   "name": "MMM-RainRadarDWD",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "A smart Rain & Snow Radar module for MagicMirror² using official DWD data.",
   "main": "MMM-RainRadarDWD.js",
   "scripts": {
@@ -13,7 +13,7 @@
     "map",
     "radar",
     "clouds",
-    "dwd",
+    "dwd"
   ],
   "author": "RealOliwer",
   "license": "MIT",
@@ -26,5 +26,10 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0"
   }
 }
