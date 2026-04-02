@@ -112,20 +112,39 @@ Configuration with all parameters and short explanation (see also table below)
 
 ## Configuration Options Explained
 
-| Option | Type | Default | Description |
-|---------|-----|--------- |-------------|
-| lat | Number | 53.5511 | Latitude of your location. |
-| lon |	Number | 9.9937 |	Longitude of your location. |
-| alwaysVisible |	Boolean |	false |	If true, the map is always shown. If false, it acts smartly and only shows up when precipitation is detected.
-| showIfRainWithin | Number |	120 |	If alwaysVisible is false, the module will check if precipitation is expected within this amount of minutes.
-| timePast |	Number	| 60	| How many minutes into the past the radar should show. Max: 120.
-| timeFuture |	Number	| 120	| How many minutes into the future the forecast should show. Max: 120.
-| frameStep	| Number	| 10	| The minute increments between frames. Default is 10. Minimum is 5.
-| cloudBlur	| Number	| 12	CSS | blur applied to the radar layer. 0 shows the raw 1x1 km DWD grid. 2 to 4 creates realistic, soft clouds.
-| animationSpeed	| Number | 2000 |	Milliseconds per frame. 2000 is highly recommended to allow the CSS cross-fade animation to look smooth.
-| zoomLevel	| Number	9 |	Initial map zoom. | See Zoom Level Guide below.
-| logLevel	| String	| "INFO" | Terminal output verbosity. Choose "NONE", "ERROR", "INFO", or "DEBUG
+## Configuration Options
 
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `lat` | Number | `53.5511` | Latitude of your location. |
+| `lon` | Number | `9.9937` | Longitude of your location. |
+| `alwaysVisible` | Boolean | `false` | If `true`, the map is always shown. If `false`, it acts smartly and only shows up when precipitation is detected. |
+| `showIfRainWithin`| Number | `120` | If `alwaysVisible` is `false`, the module will check if precipitation is expected within this amount of minutes. |
+| `rainSearchRadius`| Number | `0` | Radius in km. Performs a cross-scan (Center, North, South, East, West) to detect precipitation passing slightly off-center. `0` checks exact location only. 1-5 will check for corresponding km in each direction  |
+| `timePast` | Number | `60` | How many minutes into the past the radar should show. Max: 120. |
+| `timeFuture` | Number | `120` | How many minutes into the future the forecast should show. Max: 120. |
+| `frameStep` | Number | `10` | The minute increments between frames. Default is 10. Minimum is 5. |
+| `animationSpeed`| Number | `2000` | Milliseconds per frame. `2000` is highly recommended to allow the CSS cross-fade animation to look smooth. |
+| `width` | String | `"350px"` | Width of the module container. |
+| `height` | String | `"350px"` | Height of the module container. |
+| `border` | String | `"none"` | CSS border property (e.g., `"2px solid #fff"`). |
+| `zoomLevel` | Number | `9` | Initial map zoom. (9-10 recommended for regional view). |
+| `cloudBlur` | Number | `2` | CSS blur applied to the radar layer. `0` shows the raw grid. `2` to `5` creates realistic, soft clouds. |
+| `markerSymbol` | String | `"fa-home"` | FontAwesome icon name for the center location marker. |
+| `markerColor` | String | `"#ff0000"`| Color of the center location marker. |
+| `showLegend` | Boolean | `true` | Show the custom CSS color scale. |
+| `legendPosition`| String | `"bottom"`| Position of the legend. Options: `"top"`, `"bottom"`, `"left"`, `"right"`. |
+| `textPast` | String | `"PAST"` | Label used for past radar frames. |
+| `textNow` | String | `"NOW"` | Label used for the current time frame. |
+| `textForecast` | String | `"FORECAST"`| Label used for future forecast frames. |
+| `textRainExpected`| String | `" - Rain expected:"`| Text appended when rain is detected. |
+| `textSnowExpected`| String | `" - Snow expected:"`| Text appended when snow is detected. |
+| `textSleetExpected`| String| `" - Sleet expected:"`| Text appended when sleet is detected. |
+| `textHailExpected`| String | `" - Hail expected:"`| Text appended when hail is detected. |
+| `textLoading` | String | `"Loading data..."`| Initial text shown while fetching DWD data. |
+| `textLight` | String | `"Light"` | Text for the lowest value on the legend. |
+| `textHeavy` | String | `"Heavy"` | Text for the highest value on the legend. |
+| `logLevel` | String | `"INFO"` | Terminal output verbosity. Choose `"NONE"`, `"ERROR"`, `"INFO"`, or `"DEBUG"`. |
 ## Zoom Levels Reference
 
 OpenLayers uses a logarithmic scale for zoom levels. Depending on your preference, set zoomLevel to:

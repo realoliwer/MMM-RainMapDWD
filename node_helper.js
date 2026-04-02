@@ -9,11 +9,11 @@ module.exports = NodeHelper.create({
         const msgLevel = levels[level] || 2;
 
         if (msgLevel <= configLevel) {
-            const prefix = `[${this.name}] `;
+            // Prefix removed to avoid double naming in PM2/MagicMirror logs
             if (level === "ERROR") {
-                console.error(prefix + message);
+                console.error(message);
             } else {
-                console.log(prefix + message);
+                console.log(message);
             }
         }
     },
@@ -38,55 +38,103 @@ module.exports = NodeHelper.create({
             this.retryTimer = null;
         }
 
-        const { lat, lon, showIfRainWithin, alwaysVisible } = this.config;
-
-        if (alwaysVisible) {
-            this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: "rain" });
-        }
+        // Fetch the radius from config (fallback to 0 if not set)
+        const { lat, lon, showIfRainWithin, alwaysVisible, rainSearchRadius = 0 } = this.config;
 
         try {
-            this.log("DEBUG", `Starting API request for coordinates: ${lat}, ${lon}`);
+            this.log("DEBUG", `--- WEATHER CHECK STARTED ---`);
             
+            // 1. Calculate coordinates for the cross-scan
+            const locations = [{ lat: lat, lon: lon, name: "Center" }];
+            
+            if (rainSearchRadius > 0) {
+                // 1 degree of latitude = approx. 111.32 km
+                const latOffset = rainSearchRadius / 111.32;
+                // 1 degree of longitude = varies depending on latitude
+                const lonOffset = rainSearchRadius / (111.32 * Math.cos(lat * Math.PI / 180));
+
+                locations.push({ lat: lat + latOffset, lon: lon, name: "North" });
+                locations.push({ lat: lat - latOffset, lon: lon, name: "South" });
+                locations.push({ lat: lat, lon: lon + lonOffset, name: "East" });
+                locations.push({ lat: lat, lon: lon - lonOffset, name: "West" });
+                
+                this.log("DEBUG", `Search Radius active: ${rainSearchRadius}km. Scanning 5 points around base location.`);
+            } else {
+                this.log("DEBUG", `Scanning exact location only.`);
+            }
+
             const today = new Date().toISOString();
-            const url = `https://api.brightsky.dev/weather?lat=${lat}&lon=${lon}&date=${today}`;
-            
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`Server responded with status ${response.status}`);
-            }
 
-            const data = await response.json();
+            // 2. Start all API requests concurrently (Promise.all)
+            const fetchPromises = locations.map(loc => {
+                const url = `https://api.brightsky.dev/weather?lat=${loc.lat}&lon=${loc.lon}&date=${today}`;
+                
+                // NEW: Explicitly log the exact coordinates and the requested URL for debugging
+                this.log("DEBUG", `[${loc.name}] Requesting Lat: ${loc.lat}, Lon: ${loc.lon}`);
+                this.log("DEBUG", `[${loc.name}] URL: ${url}`);
 
-            if (!data.weather) {
-                this.log("ERROR", "Incomplete API response (missing 'weather' array).");
-                return;
-            }
-
-            const now = new Date();
-            const limit = new Date(now.getTime() + showIfRainWithin * 60000);
-            
-            const upcomingEvent = data.weather.find(h => {
-                const fTime = new Date(h.timestamp);
-                return fTime >= now && fTime <= limit && h.precipitation > 0;
+                return fetch(url).then(async res => {
+                    if (!res.ok) throw new Error(`Status ${res.status}`);
+                    const data = await res.json();
+                    return { name: loc.name, weather: data.weather };
+                });
             });
 
-            let precipType = "rain";
-            if (upcomingEvent && upcomingEvent.condition) {
-                precipType = upcomingEvent.condition;
+            const responses = await Promise.all(fetchPromises);
+
+            // 3. Define timeframe (-60 minutes bugfix is included here to catch the current running hour!)
+            const now = new Date();
+            const checkStart = new Date(now.getTime() - 60 * 60000);
+            const limit = new Date(now.getTime() + showIfRainWithin * 60000);
+            
+            this.log("DEBUG", `Looking for rain between ${checkStart.toLocaleTimeString()} and ${limit.toLocaleTimeString()}`);
+
+            let upcomingEvent = null;
+
+            // 4. Evaluate all responses
+            for (const response of responses) {
+                if (!response.weather) continue;
+
+                const relevantHours = response.weather.filter(h => {
+                    const fTime = new Date(h.timestamp);
+                    return fTime >= checkStart && fTime <= limit;
+                });
+
+                // Find the first rain event at this specific location
+                const eventAtLocation = relevantHours.find(h => h.precipitation > 0);
+
+                if (eventAtLocation) {
+                    this.log("DEBUG", `[${response.name}] Hit! Precipitation: ${eventAtLocation.precipitation} mm | Condition: ${eventAtLocation.condition}`);
+                    
+                    // Save the first event we find and append the location name for the final log
+                    if (!upcomingEvent) {
+                        upcomingEvent = { 
+                            ...eventAtLocation, 
+                            locationName: response.name 
+                        };
+                    }
+                } else {
+                    this.log("DEBUG", `[${response.name}] All clear.`);
+                }
             }
 
+            // 5. Send decision to the mirror frontend
             if (!alwaysVisible) {
                 if (upcomingEvent) {
-                    this.log("INFO", `Precipitation detected (${precipType}). Radar will be shown.`);
-                    this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: precipType });
+                    // Log now includes the exact location (e.g., [West])
+                    this.log("INFO", `Precipitation detected nearby at [${upcomingEvent.locationName}] (${upcomingEvent.precipitation} mm). Radar will be shown.`);
+                    this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: upcomingEvent.condition || "rain" });
                 } else {
-                    this.log("DEBUG", "No precipitation expected. Hiding radar.");
+                    this.log("INFO", `No precipitation expected in the given timeframe or radius. Hiding radar.`);
                     this.sendSocketNotification("SHOW_RADAR", { show: false });
                 }
-            } else if (upcomingEvent) {
-                // If always visible but weather changed, we update the precipType silently
-                this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: precipType });
+            } else {
+                // If alwaysVisible is true, we still send the correct precipitation type if available
+                if (upcomingEvent) {
+                    this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: upcomingEvent.condition || "rain" });
+                } else {
+                    this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: "rain" });
+                }
             }
 
         } catch (error) {
