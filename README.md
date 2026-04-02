@@ -1,7 +1,7 @@
 # MMM-RainRadarDWD
 This module has been developed mostly by vibe coding with an AI as I am not a real developer. If you want to take over the module and maintaine the code, please feel free to contact me. I just wanted to get a solution for myself and happy to share the result for now =)
 
-A smart, zero-dependency Rain & Snow Radar module for [MagicMirror²]([https://github.com/MagicMirrorOrg/MagicMirror]) using data from GERMAN weather service (DWD). Hence it is only working for areas in Germany!
+A smart Rain & Snow Radar module for [MagicMirror²]([https://github.com/MagicMirrorOrg/MagicMirror]) using data from GERMAN weather service (DWD). Hence it is only working for areas in Germany!
 
 It displays animated radar data (past and forecast) from the official **Deutscher Wetterdienst (DWD)** on an OpenLayers map. 
 
