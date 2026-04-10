@@ -1,4 +1,112 @@
+/* Container styling to keep the map bounded and visually clean */
 #rainradar-wrapper {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Time display overlay */
+#rainradar-time {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 3px 8px;
+    font-size: 14px;
+    border-radius: 4px;
+    z-index: 10;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+/* * The DWD radar provides raw, pixelated grid images. 
+ * We apply a dynamic blur and saturation filter via CSS to blend the pixels together, creating a much more realistic, organic cloud-like appearance.
+ */
+.radar-cloud-layer {
+    filter: blur(var(--cloud-blur, 0px)) saturate(1.8) drop-shadow(0 0 6px rgba(0, 255, 255, 0.2));
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Central GPS Location Marker */
+.rainradar-marker {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 26px;
+    z-index: 20;
+    text-shadow: 0 0 8px #000;
+    pointer-events: none;
+}
+
+/* --- Dynamic Legend Layouts --- */
+#rainradar-custom-legend {
+    position: absolute;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    color: #fff;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+    text-shadow: 1px 1px 2px #000;
+    box-sizing: border-box;
+}
+
+/* Configuration for Horizontal placement (Top/Bottom) */
+.legend-horizontal {
+    flex-direction: column;
+    width: 70%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.legend-horizontal .legend-bar {
+    height: 12px;
+    width: 100%;
+    background: linear-gradient(to right, #00ffff, #00ff00, #ffff00, #ffaa00, #ff0000, #ff00ff);
+    border-radius: 3px;
+    box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+}
+
+.legend-horizontal .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-weight: bold;
+}
+
+/* Configuration for Vertical placement (Left/Right) */
+.legend-vertical {
+    flex-direction: row;
+    height: 70%;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.legend-vertical .legend-bar {
+    width: 12px;
+    height: 100%;
+    background: linear-gradient(to top, #00ffff, #00ff00, #ffff00, #ffaa00, #ff0000, #ff00ff);
+    border-radius: 3px;
+    box-shadow: inset 0 0 3px rgba(0,0,0,0.5);
+}
+
+.legend-vertical .legend-labels {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    margin-left: 6px;
+    font-weight: bold;
+}
+
+/* Legend Anchoring */
+.legend-pos-bottom { bottom: 10px; }
+.legend-pos-top { top: 40px; } 
+.legend-pos-left { left: 10px; }
+.legend-pos-right { right: 10px; }#rainradar-wrapper {
     position: relative;
     border-radius: 10px;
     overflow: hidden;
