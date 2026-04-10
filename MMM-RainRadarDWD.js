@@ -74,7 +74,7 @@ Module.register("MMM-RainRadarDWD", {
         this.radarLayers = [];
         this.animationTimer = null;
         this.currentStep = 0;
-        
+        this.radarUpdateInterval = null;
         this.sendSocketNotification("CONFIG", this.config);
     },
 
@@ -137,6 +137,7 @@ Module.register("MMM-RainRadarDWD", {
                         if (document.getElementById("rainradar-map")) {
                             clearInterval(checkExist);
                             this.updateRadarData();
+                            this.startRadarUpdateInterval();
                         }
                         if (++retries > 50) {
                             clearInterval(checkExist);
@@ -144,6 +145,7 @@ Module.register("MMM-RainRadarDWD", {
                     }, 100);
                 } else {
                     this.updateRadarData(); 
+                    this.startRadarUpdateInterval();
                 }
             } else {
                 this.showRadar = false;
@@ -151,7 +153,26 @@ Module.register("MMM-RainRadarDWD", {
                 if (this.animationTimer) {
                     clearInterval(this.animationTimer);
                 }
+                this.stopRadarUpdateInterval();
             }
+        }
+    },
+
+    startRadarUpdateInterval: function() {
+        if (!this.radarUpdateInterval) {
+            this.log("DEBUG", "Starting independent 5-minute background update for radar frames.");
+            this.radarUpdateInterval = setInterval(() => {
+                this.log("DEBUG", "5 minutes passed: Refreshing radar frames to keep 'NOW' time current.");
+                this.updateRadarData();
+            }, 5 * 60 * 1000); // 5 minutes
+        }
+    },
+
+    stopRadarUpdateInterval: function() {
+        if (this.radarUpdateInterval) {
+            this.log("DEBUG", "Stopping radar frame background update (module hidden).");
+            clearInterval(this.radarUpdateInterval);
+            this.radarUpdateInterval = null;
         }
     },
 
