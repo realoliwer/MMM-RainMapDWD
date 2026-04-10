@@ -4,12 +4,12 @@ module.exports = NodeHelper.create({
     retryTimer: null,
 
     log: function(level, message) {
+        // We handle custom logging here to respect the user's config level.
         const levels = { "NONE": 0, "ERROR": 1, "INFO": 2, "DEBUG": 3 };
         const configLevel = this.config && this.config.logLevel ? levels[this.config.logLevel.toUpperCase()] : 2;
         const msgLevel = levels[level] || 2;
 
         if (msgLevel <= configLevel) {
-            // Prefix removed to avoid double naming in PM2/MagicMirror logs
             if (level === "ERROR") {
                 console.error(message);
             } else {
@@ -23,6 +23,7 @@ module.exports = NodeHelper.create({
             this.config = payload;
             this.log("INFO", "Configuration received. Starting weather monitor...");
             
+            // Fire the first check immediately, then start the polling loop
             this.checkWeather();
             
             setInterval(() => {
@@ -38,19 +39,18 @@ module.exports = NodeHelper.create({
             this.retryTimer = null;
         }
 
-        // Fetch the radius from config (fallback to 0 if not set)
         const { lat, lon, showIfRainWithin, alwaysVisible, rainSearchRadius = 0 } = this.config;
 
         try {
             this.log("DEBUG", `--- WEATHER CHECK STARTED ---`);
             
-            // 1. Calculate coordinates for the cross-scan
+            // 1. Establish the base location (Center)
             const locations = [{ lat: lat, lon: lon, name: "Center" }];
             
+            // Radar clouds often pass slightly offset from the exact GPS coordinate. By calculating 4 additional points (North, South, East, West), we simulate a wider catchment area to trigger the module even if a storm cell barely misses the precise center location. Keep in mind that the roster of DWD cells is roughly 2x2 kilometers
             if (rainSearchRadius > 0) {
-                // 1 degree of latitude = approx. 111.32 km
+                // Approximate degree conversion for latitude/longitude offsets based on the radius
                 const latOffset = rainSearchRadius / 111.32;
-                // 1 degree of longitude = varies depending on latitude
                 const lonOffset = rainSearchRadius / (111.32 * Math.cos(lat * Math.PI / 180));
 
                 locations.push({ lat: lat + latOffset, lon: lon, name: "North" });
@@ -65,11 +65,11 @@ module.exports = NodeHelper.create({
 
             const today = new Date().toISOString();
 
-            // 2. Start all API requests concurrently (Promise.all)
+            // 2. Fetch data from Bright Sky API for all calculated locations concurrently.
+            // Promise.all ensures we don't proceed until every location has reported its weather model.
             const fetchPromises = locations.map(loc => {
                 const url = `https://api.brightsky.dev/weather?lat=${loc.lat}&lon=${loc.lon}&date=${today}`;
                 
-                // NEW: Explicitly log the exact coordinates and the requested URL for debugging
                 this.log("DEBUG", `[${loc.name}] Requesting Lat: ${loc.lat}, Lon: ${loc.lon}`);
                 this.log("DEBUG", `[${loc.name}] URL: ${url}`);
 
@@ -82,8 +82,12 @@ module.exports = NodeHelper.create({
 
             const responses = await Promise.all(fetchPromises);
 
-            // 3. Define timeframe (-60 minutes bugfix is included here to catch the current running hour!)
             const now = new Date();
+            
+            // BUGFIX (-60 minutes): The API delivers hourly forecasts (e.g., exactly at 15:00:00).
+            // If the current time is 15:15, a simple 'future check' would completely ignore the
+            // precipitation occurring in the currently active hour. Subtracting 60 minutes ensures
+            // the ongoing hour is always evaluated.
             const checkStart = new Date(now.getTime() - 60 * 60000);
             const limit = new Date(now.getTime() + showIfRainWithin * 60000);
             
@@ -91,7 +95,7 @@ module.exports = NodeHelper.create({
 
             let upcomingEvent = null;
 
-            // 4. Evaluate all responses
+            // 3. Evaluate the fetched data
             for (const response of responses) {
                 if (!response.weather) continue;
 
@@ -100,13 +104,13 @@ module.exports = NodeHelper.create({
                     return fTime >= checkStart && fTime <= limit;
                 });
 
-                // Find the first rain event at this specific location
+                // Find the very first hour where precipitation > 0 is expected for this location
                 const eventAtLocation = relevantHours.find(h => h.precipitation > 0);
 
                 if (eventAtLocation) {
                     this.log("DEBUG", `[${response.name}] Hit! Precipitation: ${eventAtLocation.precipitation} mm | Condition: ${eventAtLocation.condition}`);
                     
-                    // Save the first event we find and append the location name for the final log
+                    // Store the first detected event globally and append its location identifier for logging
                     if (!upcomingEvent) {
                         upcomingEvent = { 
                             ...eventAtLocation, 
@@ -118,10 +122,9 @@ module.exports = NodeHelper.create({
                 }
             }
 
-            // 5. Send decision to the mirror frontend
+            // 4. Send visibility and precipitation data to the frontend module
             if (!alwaysVisible) {
                 if (upcomingEvent) {
-                    // Log now includes the exact location (e.g., [West])
                     this.log("INFO", `Precipitation detected nearby at [${upcomingEvent.locationName}] (${upcomingEvent.precipitation} mm). Radar will be shown.`);
                     this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: upcomingEvent.condition || "rain" });
                 } else {
@@ -129,7 +132,7 @@ module.exports = NodeHelper.create({
                     this.sendSocketNotification("SHOW_RADAR", { show: false });
                 }
             } else {
-                // If alwaysVisible is true, we still send the correct precipitation type if available
+                // If the user forces visibility, we still attempt to send the correct condition type
                 if (upcomingEvent) {
                     this.sendSocketNotification("SHOW_RADAR", { show: true, precipType: upcomingEvent.condition || "rain" });
                 } else {
@@ -141,6 +144,7 @@ module.exports = NodeHelper.create({
             this.log("ERROR", `Fetch failed: ${error.message}`);
             this.log("INFO", "Network not ready or API unreachable. Scheduling automatic retry in 30 seconds...");
             
+            // Automatic retry mechanism to prevent the module from failing silently on network drops
             this.retryTimer = setTimeout(() => {
                 this.log("INFO", "Executing scheduled retry after previous failure...");
                 this.checkWeather();
