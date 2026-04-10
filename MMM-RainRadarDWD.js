@@ -160,11 +160,10 @@ Module.register("MMM-RainRadarDWD", {
 
     startRadarUpdateInterval: function() {
         if (!this.radarUpdateInterval) {
-            this.log("DEBUG", "Starting independent 5-minute background update for radar frames.");
+            this.log("DEBUG", "Starting dynamic 2-minute background ping to check for new DWD images.");
             this.radarUpdateInterval = setInterval(() => {
-                this.log("DEBUG", "5 minutes passed: Refreshing radar frames to keep 'NOW' time current.");
                 this.updateRadarData();
-            }, 5 * 60 * 1000); // 5 minutes
+            }, 2 * 60 * 1000); 
         }
     },
 
@@ -176,8 +175,37 @@ Module.register("MMM-RainRadarDWD", {
         }
     },
 
-    updateRadarData: function() {
+updateRadarData: async function() {
         if (typeof ol === "undefined") return;
+
+        let candidateTime = new Date();
+        candidateTime.setMilliseconds(0);
+        candidateTime.setSeconds(0);
+        candidateTime.setMinutes(Math.floor(candidateTime.getMinutes() / 5) * 5);
+        const timeStr = candidateTime.toISOString().split('.')[0] + "Z";    
+        const testUrl = `https://maps.dwd.de/geoserver/dwd/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=dwd:Niederschlagsradar&TIME=${timeStr}&WIDTH=2&HEIGHT=2&CRS=EPSG:3857&BBOX=1113194,6621293,1113200,6621300`;
+
+        let baseTime = candidateTime;
+        try {
+            const res = await fetch(testUrl);
+            const contentType = res.headers.get("content-type");
+            if (!res.ok || (contentType && contentType.includes("xml"))) {
+                this.log("DEBUG", `DWD image for ${timeStr} not ready yet. Using -5 min fallback.`);
+                baseTime = new Date(candidateTime.getTime() - 5 * 60000);
+            } else {
+                this.log("DEBUG", `DWD image for ${timeStr} is online! Setting to NOW.`);
+            }
+        } catch (e) {
+            this.log("DEBUG", `Ping failed, falling back -5 mins.`);
+            baseTime = new Date(candidateTime.getTime() - 5 * 60000);
+        }
+
+        if (this.lastBaseTime && this.lastBaseTime.getTime() === baseTime.getTime() && this.map) {
+            this.log("DEBUG", "Base time hasn't changed. Skipping OpenLayers update to save CPU.");
+            return;
+        }
+
+        this.lastBaseTime = baseTime;
 
         if (!this.map) {
             this.map = new ol.Map({
@@ -197,12 +225,6 @@ Module.register("MMM-RainRadarDWD", {
             });
         }
 
-        // Apply 10-minute safety buffer for DWD computation time
-        let baseTime = new Date(Date.now() - 10 * 60000);
-        baseTime.setMilliseconds(0);
-        baseTime.setSeconds(0);
-        baseTime.setMinutes(Math.floor(baseTime.getMinutes() / 5) * 5);
-
         const startMins = -Math.min(this.config.timePast, 120);
         const endMins = Math.min(this.config.timeFuture, 120);
         const step = Math.max(this.config.frameStep, 5);
@@ -211,19 +233,15 @@ Module.register("MMM-RainRadarDWD", {
 
         for (let mins = startMins; mins <= endMins; mins += step) {
             const frameTime = new Date(baseTime.getTime() + mins * 60000);
-            const timeStr = frameTime.toISOString().split('.')[0] + "Z";
+            const frameTimeStr = frameTime.toISOString().split('.')[0] + "Z";
 
             if (!this.radarLayers[frameIndex]) {
                 const wmsSource = new ol.source.ImageWMS({
                     url: 'https://maps.dwd.de/geoserver/dwd/wms',
-                    params: { 'LAYERS': 'dwd:Niederschlagsradar', 'TIME': timeStr },
+                    params: { 'LAYERS': 'dwd:Niederschlagsradar', 'TIME': frameTimeStr },
                     ratio: 1,
                     serverType: 'geoserver',
                     crossOrigin: 'anonymous'
-                });
-                
-                wmsSource.on('imageloaderror', () => {
-                    this.log("DEBUG", `Frame for ${timeStr} missing at DWD. Skipping silently.`);
                 });
                 
                 const layer = new ol.layer.Image({
@@ -239,7 +257,7 @@ Module.register("MMM-RainRadarDWD", {
                 this.radarLayers[frameIndex].time = frameTime;
                 this.radarLayers[frameIndex].mins = mins;
                 this.radarLayers[frameIndex].layer.setOpacity(frameIndex === 0 ? 0.7 : 0);
-                this.radarLayers[frameIndex].layer.getSource().updateParams({ 'TIME': timeStr });
+                this.radarLayers[frameIndex].layer.getSource().updateParams({ 'TIME': frameTimeStr });
             }
             frameIndex++;
         }
